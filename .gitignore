@@ -49,3 +49,6 @@ secrets/
 
 # Docker
 .dockerignore
+
+# Repomix
+repomix-output.xml
