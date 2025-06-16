@@ -1,0 +1,18 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gyo-en-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: gyo-en
+  template:
+    metadata:
+      labels:
+        app: gyo-en
+    spec:
+      containers:
+      - name: gyo-en
+        image: gyo-en:latest
+        imagePullPolicy: Never
