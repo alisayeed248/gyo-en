@@ -4,11 +4,26 @@ import (
 	"fmt"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
 	"time"
+	"os"
+	"bufio"
+	"strings"
 )
 
 func main() {
 	fmt.Println("gyo-en uptime monitor starting...")
-	urls := []string{"https://www.google.com", "https://test-fake-website-12443.com", "https://httpstat.us/500"}
+
+	// Read URLs from file
+	urls, err := readURLsFromFile("test-urls.txt")
+	
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	fmt.Printf("Read %d URLs from file\n", len(urls))
+	for _, url := range urls {
+		fmt.Printf("- %s\n", url)
+	}
 
 	for {
 		fmt.Printf("\n--- Checking at %s ---\n", time.Now().Format("15:04:05"))
@@ -28,4 +43,22 @@ func main() {
 		time.Sleep(30 * time.Second)
 	}
 
+}
+
+func readURLsFromFile(filename string) ([]string, error) {
+	file, err := os.Open(filename)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	var urls []string
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			urls = append(urls, line)
+		}
+	}
+	return urls, scanner.Err()
 }
