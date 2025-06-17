@@ -14,5 +14,12 @@ spec:
     spec:
       containers:
       - name: gyo-en
-        image: gyo-en:v2
+        image: gyo-en:v4
         imagePullPolicy: Never
+        volumeMounts:
+        - name: config-volume
+          mountPath: /config
+      volumes:
+      - name: config-volume
+        configMap: 
+          name: gyo-en-config

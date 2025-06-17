@@ -13,7 +13,7 @@ func main() {
 	fmt.Println("gyo-en uptime monitor starting...")
 
 	// Read URLs from file
-	urls, err := readURLsFromFile("test-urls.txt")
+	urls, err := readURLsFromFile("/config/urls.txt")
 	
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
