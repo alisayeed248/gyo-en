@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gyo-en-config
+data:
+  urls.txt: |
+    https://www.google.com
+    https://github.com
+    https://stackoverflow.com
+    https://httpstat.us/200
+    https://httpstat.us/500
+  check-interval: "30"
