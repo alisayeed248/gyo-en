@@ -61,10 +61,19 @@ func main() {
 			isUp, duration, err := monitor.CheckURL(url)
 			if err != nil {
 				fmt.Printf("Error checking %s: %v\n", url, err)
-			} else if isUp {
-				fmt.Printf("%s is UP (took %v)\n", url, duration)
+				storeCheckResult(rdb, url, false, duration)
 			} else {
-				fmt.Printf("%s is DOWN (took %v)\n", url, duration)
+				// Store the check result
+				storeErr := storeCheckResult(rdb, url, isUp, duration)
+				if storeErr != nil {
+					fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
+				}
+
+				if isUp {
+					fmt.Printf("%s is UP (took %v)\n", url, duration)
+				} else {
+					fmt.Printf("%s is DOWN (took %v)\n", url, duration)
+				}
 			}
 		}
 
@@ -144,7 +153,10 @@ func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Du
 		return err
 	}
 
-	rdb.LTrim(ctx, key, 0, 99)
-
+	err = rdb.LTrim(ctx, key, 0, 99).Err()
+	if err != nil {
+		fmt.Printf("Warning: Failed to trim old data for %s: %v\n", url, err)
+	}
+	
 	return nil
 }
