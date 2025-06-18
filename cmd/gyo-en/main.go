@@ -157,6 +157,39 @@ func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Du
 	if err != nil {
 		fmt.Printf("Warning: Failed to trim old data for %s: %v\n", url, err)
 	}
-	
+
 	return nil
+}
+
+func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool, string, error) {
+	ctx := context.Background()
+	key := fmt.Sprintf("checks:%s", url)
+
+	// get most recent stored result (index 0)
+	lastResult, err := rdb.LIndex(ctx, key, 0).Result()
+	if err != nil {
+		// if no key, not error
+		if err != redis.Nil {
+			return false, "NEW", nil
+		}
+		return false, "", err
+	}
+
+	// parse the last result to get previous status
+	// original format is like timestamp:status:ms
+	parts := strings.Split(lastResult, "|")
+	if len(parts) < 2 {
+		return false, "", fmt.Errorf("invalid stored result format")
+	}
+
+	previousStatus := parts[1] == "UP"
+	
+	// Detect changes
+	if previousStatus && !currentStatus {
+		return true, "UP->DOWN", nil
+	} else if !previousStatus && currentStatus {
+		return true, "DOWN->UP", nil
+	}
+
+	return false, "NO_CHANGE", nil
 }
