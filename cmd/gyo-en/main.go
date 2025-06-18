@@ -13,6 +13,7 @@ import (
 
 func main() {
 	fmt.Println("gyo-en uptime monitor starting...")
+	fmt.Println("DEBUG: About to read URLs from file...")
 
 	// Read URLs from file
 	urls, err := readURLsFromFile("/config/urls.txt")
@@ -21,6 +22,7 @@ func main() {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
+	fmt.Println("DEBUG: Successfully read URLs")  // ADD THIS
 
 	fmt.Printf("Read %d URLs from file\n", len(urls))
 	for _, url := range urls {
@@ -28,6 +30,7 @@ func main() {
 	}
 
 	go startHealthServer()
+	fmt.Println("HTTP server goroutine started!")
 
 	for {
 		fmt.Printf("\n--- Checking at %s ---\n", time.Now().Format("15:04:05"))
