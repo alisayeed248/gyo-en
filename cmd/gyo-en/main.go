@@ -120,3 +120,31 @@ func connectRedis() *redis.Client {
 	fmt.Println("✅ Connected to Redis!")
 	return rdb
 }
+
+// rdb is pointer to our redis connection, isUp is our true/false result from the check
+func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Duration) error {
+	// run normally
+	ctx := context.Background()
+
+	timestamp := time.Now().Format("2006-01-02T15:04:05")
+
+	// Default status is down, we can move to up
+	status := "DOWN"
+	if isUp {
+		status = "UP"
+	}
+
+	// Sprintf is the fmt command that lets us build a string. this is string string value
+	result := fmt.Sprintf("%s|%s|%v", timestamp, status, duration)
+
+	// store in Redis list (most recent first)
+	key := fmt.Sprintf("checks:%s", url)
+	err := rdb.LPush(ctx, key, result).Err()
+	if err != nil {
+		return err
+	}
+
+	rdb.LTrim(ctx, key, 0, 99)
+
+	return nil
+}
