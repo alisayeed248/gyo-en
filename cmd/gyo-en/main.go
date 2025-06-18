@@ -59,22 +59,33 @@ func main() {
 
 		for _, url := range urls {
 			isUp, duration, err := monitor.CheckURL(url)
+
 			if err != nil {
 				fmt.Printf("Error checking %s: %v\n", url, err)
-				storeCheckResult(rdb, url, false, duration)
-			} else {
-				// Store the check result
-				storeErr := storeCheckResult(rdb, url, isUp, duration)
-				if storeErr != nil {
-					fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
-				}
-
-				if isUp {
-					fmt.Printf("%s is UP (took %v)\n", url, duration)
-				} else {
-					fmt.Printf("%s is DOWN (took %v)\n", url, duration)
-				}
+				isUp = false // Treat errors as DOWN
 			}
+
+			hasChanged, changeType, detectErr := detectStatusChange(rdb, url, isUp)
+			if detectErr != nil {
+				fmt.Printf("Failed to detect changes for %s: %v\n", url, detectErr)
+			}
+
+			// Store the new result
+			storeErr := storeCheckResult(rdb, url, isUp, duration)
+			if storeErr != nil {
+				fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
+			}
+
+			if hasChanged {
+				fmt.Printf("🚨 ALERT: %s changed status: %s\n", url, changeType)
+			}
+
+			if isUp {
+				fmt.Printf("%s is UP (took %v)\n", url, duration)
+			} else {
+				fmt.Printf("%s is DOWN (took %v)\n", url, duration)
+			}
+
 		}
 
 		fmt.Println("Sleeping for 30 seconds...")
@@ -169,7 +180,7 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 	lastResult, err := rdb.LIndex(ctx, key, 0).Result()
 	if err != nil {
 		// if no key, not error
-		if err != redis.Nil {
+		if err == redis.Nil {
 			return false, "NEW", nil
 		}
 		return false, "", err
@@ -183,7 +194,7 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 	}
 
 	previousStatus := parts[1] == "UP"
-	
+
 	// Detect changes
 	if previousStatus && !currentStatus {
 		return true, "UP->DOWN", nil
