@@ -1,40 +1,54 @@
 package main
 
 import (
+	"bufio"
+	"context"
 	"fmt"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
-	"time"
-	"os"
-	"bufio"
-	"strings"
-	"net/http"
-	"log"
 	"github.com/redis/go-redis/v9"
-	"context"
+	"log"
+	"net/http"
+	"os"
+	"strings"
+	"time"
 )
 
 func main() {
-	fmt.Println("gyo-en uptime monitor starting...")
+	fmt.Println("🚀 NEW VERSION v2 - Testing simple deployment!")
 	fmt.Println("DEBUG: About to read URLs from file...")
 
 	// Read URLs from file
 	urls, err := readURLsFromFile("/config/urls.txt")
-	
+
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
-	fmt.Println("DEBUG: Successfully read URLs")  // ADD THIS
+	fmt.Println("DEBUG: Successfully read URLs") // ADD THIS
 
 	fmt.Printf("Read %d URLs from file\n", len(urls))
 	for _, url := range urls {
 		fmt.Printf("- %s\n", url)
 	}
 
-	rdb:= connectRedis()
+	rdb := connectRedis()
 	if rdb == nil {
 		fmt.Println("Cannot continue without Redis")
 		return
+	}
+
+	ctx := context.Background()
+	testKey := fmt.Sprintf("test:%d", time.Now().Unix())
+	err = rdb.Set(ctx, testKey, "Hello Redis!", 0).Err()
+	if err != nil {
+		fmt.Printf("❌ Redis SET failed: %v\n", err)
+	} else {
+		val, err := rdb.Get(ctx, testKey).Result()
+		if err != nil {
+			fmt.Printf("❌ Redis GET failed: %v\n", err)
+		} else {
+			fmt.Printf("🚀 Redis test SUCCESS: %s\n", val)
+		}
 	}
 
 	go startHealthServer()
@@ -92,17 +106,17 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 
 func connectRedis() *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr: "redis-service:6379",
+		Addr:     "redis-service:6379",
 		Password: "",
-		DB: 0,
+		DB:       0,
 	})
-	 ctx := context.Background()
-	 _, err := rdb.Ping(ctx).Result()
-	 if err != nil {
+	ctx := context.Background()
+	_, err := rdb.Ping(ctx).Result()
+	if err != nil {
 		fmt.Printf("Failed to connect to Redis: %v\n", err)
 		return nil
-	 }
+	}
 
-	 fmt.Println("✅ Connected to Redis!")
-	 return rdb
+	fmt.Println("✅ Connected to Redis!")
+	return rdb
 }

@@ -1,11 +1,19 @@
-$TAG = [int][double]::Parse((Get-Date -UFormat %s))
-Write-Host "Building gyo-en:$TAG"
+Write-Host "Nuclear deploy - destroying everything."
 
-docker build -t gyo-en:$TAG .
-minikube image load gyo-en:$TAG
+# Delete everything
+kubectl delete deployment gyo-en-deployment --force --grace-period=0
+kubectl delete pods -l app=gyo-en --force --grace-period=0
 
-(Get-Content k8s-deployment.yaml) -replace 'image: gyo-en:.*', "image: gyo-en:$TAG" | kubectl apply -f -
+# Wait for cleanup
+Start-Sleep -Seconds 10
 
-Write-Host "Deployed gyo-en:$TAG"
-kubectl logs -l app=gyo-en -f
+# Fresh build and deploy
+docker build --no-cache -t gyo-en:latest .
+minikube image load gyo-en:latest
 
+# Fresh deployment
+kubectl apply -f k8s-deployment.yaml
+
+Write-Host "Deployed. Waiting for startup..."
+Start-Sleep -Seconds 20
+kubectl logs -l app=gyo-en --tail=50
