@@ -9,6 +9,8 @@ import (
 	"strings"
 	"net/http"
 	"log"
+	"github.com/redis/go-redis/v9"
+	"context"
 )
 
 func main() {
@@ -27,6 +29,12 @@ func main() {
 	fmt.Printf("Read %d URLs from file\n", len(urls))
 	for _, url := range urls {
 		fmt.Printf("- %s\n", url)
+	}
+
+	rdb:= connectRedis()
+	if rdb == nil {
+		fmt.Println("Cannot continue without Redis")
+		return
 	}
 
 	go startHealthServer()
@@ -80,4 +88,21 @@ func startHealthServer() {
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "OK")
+}
+
+func connectRedis() *redis.Client {
+	rdb := redis.NewClient(&redis.Options{
+		Addr: "redis-service:6379",
+		Password: "",
+		DB: 0,
+	})
+	 ctx := context.Background()
+	 _, err := rdb.Ping(ctx).Result()
+	 if err != nil {
+		fmt.Printf("Failed to connect to Redis: %v\n", err)
+		return nil
+	 }
+
+	 fmt.Println("✅ Connected to Redis!")
+	 return rdb
 }
