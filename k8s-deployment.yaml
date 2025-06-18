@@ -16,6 +16,20 @@ spec:
       - name: gyo-en
         image: gyo-en:latest
         imagePullPolicy: Never
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 10
+          periodSeconds: 15
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 10
         volumeMounts:
         - name: config-volume
           mountPath: /config
