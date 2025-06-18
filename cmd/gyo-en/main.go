@@ -181,7 +181,7 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 	if err != nil {
 		// if no key, not error
 		if err == redis.Nil {
-			return false, "NEW", nil
+			return true, "NEW", nil
 		}
 		return false, "", err
 	}
