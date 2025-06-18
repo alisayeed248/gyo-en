@@ -7,6 +7,8 @@ import (
 	"os"
 	"bufio"
 	"strings"
+	"net/http"
+	"log"
 )
 
 func main() {
@@ -24,6 +26,8 @@ func main() {
 	for _, url := range urls {
 		fmt.Printf("- %s\n", url)
 	}
+
+	go startHealthServer()
 
 	for {
 		fmt.Printf("\n--- Checking at %s ---\n", time.Now().Format("15:04:05"))
@@ -61,4 +65,16 @@ func readURLsFromFile(filename string) ([]string, error) {
 		}
 	}
 	return urls, scanner.Err()
+}
+
+func startHealthServer() {
+	http.HandleFunc("/health", healthHandler)
+
+	fmt.Println("Health server starting on port 8080...")
+	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func healthHandler(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	fmt.Fprint(w, "OK")
 }
