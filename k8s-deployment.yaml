@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: gyo-en
-        image: gyo-en:v4
+        image: gyo-en:latest
         imagePullPolicy: Never
         volumeMounts:
         - name: config-volume
