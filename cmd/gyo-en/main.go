@@ -220,7 +220,7 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	// Go through each URL and get the latest status from Redis cache
 	for _, url := range urls {
 		// build our redis key
-		key := fmt.Sprintf("check:%s", url)
+		key := fmt.Sprintf("checks:%s", url)
 
 		// use this key and get the most recent result
 		lastResult, err := rdb.LIndex(ctx, key, 0).Result()
@@ -235,7 +235,7 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 		// if there's data, we parse it and add the URl status to our list
 		if err == nil && lastResult != "" {
 			parts := strings.Split(lastResult, "|")
-			if len(parts) >= 2{
+			if len(parts) >= 2 {
 				status["status"] = parts[1] // "UP" or "DOWN"
 				status["lastCheck"] = parts[0]
 			}
@@ -244,13 +244,14 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 		statusList = append(statusList, status)
 
 		// create final response
-		response := map[string]interface{}{
-			"urls": statusList,
-			"timestamp": time.Now().Format(time.RFC3339),
-		}
 
 		// we send JSON response
-		json.NewEncoder(w).Encode(response)
+
 	}
+	response := map[string]interface{}{
+		"urls":      statusList,
+		"timestamp": time.Now().Format(time.RFC3339),
+	}
+	json.NewEncoder(w).Encode(response)
 
 }
