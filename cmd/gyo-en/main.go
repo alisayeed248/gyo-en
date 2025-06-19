@@ -14,8 +14,8 @@ import (
 	"time"
 )
 
-var urls []string // accessed from API handlers
-var rdb *redis.Client // moved to outside main funct 
+var urls []string     // accessed from API handlers
+var rdb *redis.Client // moved to outside main funct
 
 func main() {
 	fmt.Println("🚀 NEW VERSION v3 - Adding API endpoints!")
@@ -208,5 +208,49 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 }
 
 func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// Set response header to JSON
+	w.Header().Set("Content-Type", "application/json")
+
+	// Create context for Redis operations
+	ctx := context.Background()
+
+	// We hold all the URL statuses in a slice
+	var statusList []map[string]interface{}
+
+	// Go through each URL and get the latest status from Redis cache
+	for _, url := range urls {
+		// build our redis key
+		key := fmt.Sprintf("check:%s", url)
+
+		// use this key and get the most recent result
+		lastResult, err := rdb.LIndex(ctx, key, 0).Result()
+
+		// create a status object for the URL
+		status := map[string]interface{}{
+			"url":       url,
+			"status":    "UNKNOWN",
+			"lastCheck": "",
+		}
+
+		// if there's data, we parse it and add the URl status to our list
+		if err == nil && lastResult != "" {
+			parts := strings.Split(lastResult, "|")
+			if len(parts) >= 2{
+				status["status"] = parts[1] // "UP" or "DOWN"
+				status["lastCheck"] = parts[0]
+			}
+		}
+
+		statusList = append(statusList, status)
+
+		// create final response
+		response := map[string]interface{}{
+			"urls": statusList,
+			"timestamp": time.Now().Format(time.RFC3339),
+		}
+
+		// we send JSON response
+		json.NewEncoder(w).Encode(response)
+	}
 
 }
