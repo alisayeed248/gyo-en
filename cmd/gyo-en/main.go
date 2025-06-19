@@ -22,7 +22,7 @@ func main() {
 
 	// Read URLs from file
 	var err error
-	urls, err := readURLsFromFile("/config/urls.txt")
+	urls, err = readURLsFromFile("/config/urls.txt")
 
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
