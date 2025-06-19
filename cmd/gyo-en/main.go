@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json" // need this for JSON responses
 	"fmt"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
 	"github.com/redis/go-redis/v9"
@@ -13,29 +14,30 @@ import (
 	"time"
 )
 
+var urls []string // accessed from API handlers
+var rdb *redis.Client // moved to outside main funct 
+
 func main() {
-	fmt.Println("🚀 NEW VERSION v2 - Testing simple deployment!")
-	fmt.Println("DEBUG: About to read URLs from file...")
+	fmt.Println("🚀 NEW VERSION v3 - Adding API endpoints!")
 
 	// Read URLs from file
+	var err error
 	urls, err := readURLsFromFile("/config/urls.txt")
 
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
 	}
-	fmt.Println("DEBUG: Successfully read URLs") // ADD THIS
 
 	fmt.Printf("Read %d URLs from file\n", len(urls))
-	for _, url := range urls {
-		fmt.Printf("- %s\n", url)
-	}
 
-	rdb := connectRedis()
+	rdb = connectRedis()
 	if rdb == nil {
 		fmt.Println("Cannot continue without Redis")
 		return
 	}
+
+	http.HandleFunc("/api/status", apiStatusHandler)
 
 	ctx := context.Background()
 	testKey := fmt.Sprintf("test:%d", time.Now().Unix())
@@ -203,4 +205,8 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 	}
 
 	return false, "NO_CHANGE", nil
+}
+
+func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
+
 }
