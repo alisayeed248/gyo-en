@@ -3,7 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
-	"encoding/json" // need this for JSON responses
+	"encoding/json"
 	"fmt"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
 	"github.com/redis/go-redis/v9"
@@ -14,48 +14,51 @@ import (
 	"time"
 )
 
-var urls []string     // accessed from API handlers
-var rdb *redis.Client // moved to outside main funct
+var urls []string
+var rdb *redis.Client
 
 func main() {
-	fmt.Println("🚀 NEW VERSION v3 - Adding API endpoints!")
+	fmt.Println("🚀 gyo-en starting...")
+	
+	// Environment-aware configuration
+	environment := getEnv("ENVIRONMENT", "development")
+	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
+	port := getEnv("PORT", "8080")
+	urlsFile := getEnv("URLS_FILE", "test-urls.txt")
+	
+	fmt.Printf("Environment: %s\n", environment)
+	fmt.Printf("Redis: %s\n", redisAddr)
+	fmt.Printf("Port: %s\n", port)
 
-	// Read URLs from file
+	// Try to read URLs from file, fallback to hardcoded
 	var err error
-	urls, err = readURLsFromFile("/config/urls.txt")
-
+	urls, err = readURLsFromFile(urlsFile)
 	if err != nil {
-		fmt.Printf("Error: %v\n", err)
-		return
-	}
-
-	fmt.Printf("Read %d URLs from file\n", len(urls))
-
-	rdb = connectRedis()
-	if rdb == nil {
-		fmt.Println("Cannot continue without Redis")
-		return
-	}
-
-	http.HandleFunc("/api/status", apiStatusHandler)
-
-	ctx := context.Background()
-	testKey := fmt.Sprintf("test:%d", time.Now().Unix())
-	err = rdb.Set(ctx, testKey, "Hello Redis!", 0).Err()
-	if err != nil {
-		fmt.Printf("❌ Redis SET failed: %v\n", err)
-	} else {
-		val, err := rdb.Get(ctx, testKey).Result()
-		if err != nil {
-			fmt.Printf("❌ Redis GET failed: %v\n", err)
-		} else {
-			fmt.Printf("🚀 Redis test SUCCESS: %s\n", val)
+		fmt.Printf("Failed to read URLs from file (%s), using defaults: %v\n", urlsFile, err)
+		// Fallback URLs for local development
+		urls = []string{
+			"https://www.google.com",
+			"https://github.com",
+			"https://httpstat.us/500",
 		}
 	}
+	fmt.Printf("Monitoring %d URLs\n", len(urls))
 
-	go startHealthServer()
-	fmt.Println("HTTP server goroutine started!")
+	// Try to connect to Redis, but don't fail if it's not available
+	rdb = connectRedis(redisAddr)
+	redisAvailable := rdb != nil
 
+	// Set up API endpoints
+	http.HandleFunc("/api/status", apiStatusHandler)
+	http.HandleFunc("/health", healthHandler)
+
+	// Start HTTP server in background
+	go func() {
+		fmt.Printf("HTTP server starting on port %s...\n", port)
+		log.Fatal(http.ListenAndServe(":"+port, nil))
+	}()
+
+	// Main monitoring loop
 	for {
 		fmt.Printf("\n--- Checking at %s ---\n", time.Now().Format("15:04:05"))
 
@@ -64,36 +67,45 @@ func main() {
 
 			if err != nil {
 				fmt.Printf("Error checking %s: %v\n", url, err)
-				isUp = false // Treat errors as DOWN
+				isUp = false
 			}
 
-			hasChanged, changeType, detectErr := detectStatusChange(rdb, url, isUp)
-			if detectErr != nil {
-				fmt.Printf("Failed to detect changes for %s: %v\n", url, detectErr)
+			// Only do Redis operations if Redis is available
+			if redisAvailable {
+				hasChanged, changeType, detectErr := detectStatusChange(rdb, url, isUp)
+				if detectErr != nil {
+					fmt.Printf("Failed to detect changes for %s: %v\n", url, detectErr)
+				}
+
+				storeErr := storeCheckResult(rdb, url, isUp, duration)
+				if storeErr != nil {
+					fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
+				}
+
+				if hasChanged {
+					fmt.Printf("🚨 ALERT: %s changed status: %s\n", url, changeType)
+				}
 			}
 
-			// Store the new result
-			storeErr := storeCheckResult(rdb, url, isUp, duration)
-			if storeErr != nil {
-				fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
-			}
-
-			if hasChanged {
-				fmt.Printf("🚨 ALERT: %s changed status: %s\n", url, changeType)
-			}
-
+			// Always show status in console
 			if isUp {
-				fmt.Printf("%s is UP (took %v)\n", url, duration)
+				fmt.Printf("✅ %s is UP (took %v)\n", url, duration)
 			} else {
-				fmt.Printf("%s is DOWN (took %v)\n", url, duration)
+				fmt.Printf("❌ %s is DOWN (took %v)\n", url, duration)
 			}
-
 		}
 
-		fmt.Println("Sleeping for 30 seconds...")
+		fmt.Println("💤 Sleeping for 30 seconds...")
 		time.Sleep(30 * time.Second)
 	}
+}
 
+// Helper function to get environment variables with defaults
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
 }
 
 func readURLsFromFile(filename string) ([]string, error) {
@@ -114,53 +126,48 @@ func readURLsFromFile(filename string) ([]string, error) {
 	return urls, scanner.Err()
 }
 
-func startHealthServer() {
-	http.HandleFunc("/health", healthHandler)
-
-	fmt.Println("Health server starting on port 8080...")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
-
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	fmt.Fprint(w, "OK")
 }
 
-func connectRedis() *redis.Client {
+func connectRedis(addr string) *redis.Client {
 	rdb := redis.NewClient(&redis.Options{
-		Addr:     "redis-service:6379",
+		Addr:     addr,
 		Password: "",
 		DB:       0,
 	})
-	ctx := context.Background()
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v\n", err)
+		fmt.Printf("⚠️  Redis not available at %s: %v\n", addr, err)
+		fmt.Println("   Running without Redis (status won't be stored)")
 		return nil
 	}
 
-	fmt.Println("✅ Connected to Redis!")
+	fmt.Printf("✅ Connected to Redis at %s\n", addr)
 	return rdb
 }
 
-// rdb is pointer to our redis connection, isUp is our true/false result from the check
 func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Duration) error {
-	// run normally
+	if rdb == nil {
+		return nil // Skip if Redis not available
+	}
+	
 	ctx := context.Background()
-
 	timestamp := time.Now().Format("2006-01-02T15:04:05")
-
-	// Default status is down, we can move to up
+	
 	status := "DOWN"
 	if isUp {
 		status = "UP"
 	}
 
-	// Sprintf is the fmt command that lets us build a string. this is string string value
 	result := fmt.Sprintf("%s|%s|%v", timestamp, status, duration)
-
-	// store in Redis list (most recent first)
 	key := fmt.Sprintf("checks:%s", url)
+	
 	err := rdb.LPush(ctx, key, result).Err()
 	if err != nil {
 		return err
@@ -175,21 +182,21 @@ func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Du
 }
 
 func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool, string, error) {
+	if rdb == nil {
+		return false, "NO_REDIS", nil
+	}
+	
 	ctx := context.Background()
 	key := fmt.Sprintf("checks:%s", url)
 
-	// get most recent stored result (index 0)
 	lastResult, err := rdb.LIndex(ctx, key, 0).Result()
 	if err != nil {
-		// if no key, not error
 		if err == redis.Nil {
 			return true, "NEW", nil
 		}
 		return false, "", err
 	}
 
-	// parse the last result to get previous status
-	// original format is like timestamp:status:ms
 	parts := strings.Split(lastResult, "|")
 	if len(parts) < 2 {
 		return false, "", fmt.Errorf("invalid stored result format")
@@ -197,7 +204,6 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 
 	previousStatus := parts[1] == "UP"
 
-	// Detect changes
 	if previousStatus && !currentStatus {
 		return true, "UP->DOWN", nil
 	} else if !previousStatus && currentStatus {
@@ -208,50 +214,41 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 }
 
 func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
-	// Set response header to JSON
 	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*") // For local development
 
-	// Create context for Redis operations
-	ctx := context.Background()
-
-	// We hold all the URL statuses in a slice
 	var statusList []map[string]interface{}
 
-	// Go through each URL and get the latest status from Redis cache
 	for _, url := range urls {
-		// build our redis key
-		key := fmt.Sprintf("checks:%s", url)
-
-		// use this key and get the most recent result
-		lastResult, err := rdb.LIndex(ctx, key, 0).Result()
-
-		// create a status object for the URL
 		status := map[string]interface{}{
 			"url":       url,
 			"status":    "UNKNOWN",
 			"lastCheck": "",
 		}
 
-		// if there's data, we parse it and add the URl status to our list
-		if err == nil && lastResult != "" {
-			parts := strings.Split(lastResult, "|")
-			if len(parts) >= 2 {
-				status["status"] = parts[1] // "UP" or "DOWN"
-				status["lastCheck"] = parts[0]
+		// Only get from Redis if available
+		if rdb != nil {
+			ctx := context.Background()
+			key := fmt.Sprintf("checks:%s", url)
+			lastResult, err := rdb.LIndex(ctx, key, 0).Result()
+
+			if err == nil && lastResult != "" {
+				parts := strings.Split(lastResult, "|")
+				if len(parts) >= 2 {
+					status["status"] = parts[1]
+					status["lastCheck"] = parts[0]
+				}
 			}
 		}
 
 		statusList = append(statusList, status)
-
-		// create final response
-
-		// we send JSON response
-
 	}
+
 	response := map[string]interface{}{
 		"urls":      statusList,
 		"timestamp": time.Now().Format(time.RFC3339),
+		"redis":     rdb != nil,
 	}
+	
 	json.NewEncoder(w).Encode(response)
-
 }
