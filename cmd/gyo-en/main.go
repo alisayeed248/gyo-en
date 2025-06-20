@@ -73,16 +73,14 @@ func main() {
 				isUp = false
 			}
 
+			// Store in database (always)
+			storeCheckInDatabase(url, isUp, duration, 200, "")
+
 			// Only do Redis operations if Redis is available
 			if redisAvailable {
 				hasChanged, changeType, detectErr := detectStatusChange(rdb, url, isUp)
 				if detectErr != nil {
 					fmt.Printf("Failed to detect changes for %s: %v\n", url, detectErr)
-				}
-
-				storeCheckInDatabase(url, isUp, duration, 200, "")
-				if storeErr != nil {
-					fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
 				}
 
 				if hasChanged {
@@ -101,6 +99,19 @@ func main() {
 		fmt.Println("💤 Sleeping for 30 seconds...")
 		time.Sleep(30 * time.Second)
 	}
+}
+
+func storeCheckInDatabase(url string, isUp bool, duration time.Duration, statusCode int, errorMsg string) {
+	checkResult := database.CheckResult{
+		URL:          url,
+		IsUp:         isUp,
+		ResponseTime: duration,
+		StatusCode:   statusCode,
+		ErrorMessage: errorMsg,
+		CheckedAt:    time.Now(),
+	}
+	
+	database.DB.Create(&checkResult)
 }
 
 // Helper function to get environment variables with defaults
@@ -155,35 +166,6 @@ func connectRedis(addr string) *redis.Client {
 	return rdb
 }
 
-func storeCheckResult(rdb *redis.Client, url string, isUp bool, duration time.Duration) error {
-	if rdb == nil {
-		return nil // Skip if Redis not available
-	}
-	
-	ctx := context.Background()
-	timestamp := time.Now().Format("2006-01-02T15:04:05")
-	
-	status := "DOWN"
-	if isUp {
-		status = "UP"
-	}
-
-	result := fmt.Sprintf("%s|%s|%v", timestamp, status, duration)
-	key := fmt.Sprintf("checks:%s", url)
-	
-	err := rdb.LPush(ctx, key, result).Err()
-	if err != nil {
-		return err
-	}
-
-	err = rdb.LTrim(ctx, key, 0, 99).Err()
-	if err != nil {
-		fmt.Printf("Warning: Failed to trim old data for %s: %v\n", url, err)
-	}
-
-	return nil
-}
-
 func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool, string, error) {
 	if rdb == nil {
 		return false, "NO_REDIS", nil
@@ -229,19 +211,18 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 			"lastCheck": "",
 		}
 
-		// Only get from Redis if available
-		if rdb != nil {
-			ctx := context.Background()
-			key := fmt.Sprintf("checks:%s", url)
-			lastResult, err := rdb.LIndex(ctx, key, 0).Result()
+		// Get latest result from database
+		var latestResult database.CheckResult
+		err := database.DB.Where("url = ?", url).Order("checked_at DESC").First(&latestResult).Error
 
-			if err == nil && lastResult != "" {
-				parts := strings.Split(lastResult, "|")
-				if len(parts) >= 2 {
-					status["status"] = parts[1]
-					status["lastCheck"] = parts[0]
-				}
+		if err == nil {
+			statusStr := "DOWN"
+			if latestResult.IsUp {
+				statusStr = "UP"
 			}
+			status["status"] = statusStr
+			status["lastCheck"] = latestResult.CheckedAt.Format("2006-01-02T15:04:05")
+			status["responseTime"] = latestResult.ResponseTime.String()
 		}
 
 		statusList = append(statusList, status)
@@ -250,21 +231,8 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	response := map[string]interface{}{
 		"urls":      statusList,
 		"timestamp": time.Now().Format(time.RFC3339),
-		"redis":     rdb != nil,
+		"database":  true,
 	}
 	
 	json.NewEncoder(w).Encode(response)
-}
-
-func storeCheckInDatabase(url string, isUp bool, duration time.Duration, statusCode int, errorMsg string) {
-	checkResult := database.CheckResult{
-		URL:          url,
-		IsUp:         isUp,
-		ResponseTime: duration,
-		StatusCode:   statusCode,
-		ErrorMessage: errorMsg,
-		CheckedAt:    time.Now(),
-	}
-	
-	database.DB.Create(&checkResult)
 }
