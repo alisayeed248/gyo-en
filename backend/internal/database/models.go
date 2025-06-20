@@ -22,3 +22,12 @@ type MonitoredUrl struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
+type CheckResult struct {
+	ID uint `json:"id" gorm:"primaryKey"`
+	URL string `json:"url" gorm:"not null"`
+	IsUp bool `json:"is_up"`
+	ResponseTime time.Duration `json:"response_time"`
+	StatusCode int `json:"status_code"`
+	ErrorMessage string `json:"error_message"`
+	CheckedAt time.Time `json:"checked_at"`
+}
