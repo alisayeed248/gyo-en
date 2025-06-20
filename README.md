@@ -1,67 +1,121 @@
 # gyo-en
 
-Kubernetes-based uptime monitoring platform with real-time dashboard. Monitor your websites and APIs with live status updates, built with Go backend and React frontend.
+Full-stack uptime monitoring platform built with Go and React. Monitor your websites and APIs with real-time dashboard, database persistence, and live status updates.
 
 ## Features
 
 - 🔍 **Real-time URL monitoring** - Check website status every 30 seconds
-- 📊 **Live dashboard** - React frontend with auto-refreshing status
-- ☸️ **Kubernetes-native** - Designed for cloud deployment
-- 🏠 **Local development friendly** - Works without Redis/K8s for development
+- 📊 **Live React dashboard** - Auto-refreshing status with response times
+- 💾 **SQLite database** - Persistent storage for users, URLs, and check history
+- ☸️ **Kubernetes-ready** - Designed for cloud deployment on GCP
+- 🏠 **Local development friendly** - Works without external dependencies
 - 🚨 **Status change detection** - Track UP/DOWN transitions
-- 📈 **Response time tracking** - Monitor site performance
+- 📈 **Response time tracking** - Monitor site performance over time
 
 ## Quick Start
 
+### Prerequisites
+- Go 1.22+
+- Node.js 18+
+
 ### Local Development (Fastest)
 
+**Terminal 1: Start Backend**
 ```bash
-# Terminal 1: Start backend
 go run cmd/gyo-en/main.go
+```
 
-# Terminal 2: Start frontend (in another terminal)
+**Terminal 2: Start Frontend**
+```bash
 cd frontend
 npm install
 npm run dev
 ```
 
-Visit http://localhost:5173 to see the dashboard!
+**Visit:** http://localhost:5173 to see the live dashboard!
 
-### Kubernetes Deployment
+**API:** http://localhost:8080/api/status for JSON data
 
-#### Prerequisites
-- Docker Desktop running
-- minikube installed
+## Architecture
 
-#### Setup
-```bash
-# Start Kubernetes cluster
-minikube start
+```
+├── cmd/gyo-en/main.go          # Backend entry point
+├── backend/
+│   └── database/
+│       ├── models.go           # Data models (User, MonitoredURL, CheckResult)
+│       └── database.go         # SQLite connection & GORM setup
+├── internal/monitor/checker.go # URL checking logic
+├── frontend/                   # React dashboard
+│   ├── src/components/Dashboard.jsx
+│   └── package.json
+├── test-urls.txt              # URLs for local development
+├── gyo-en.db                  # SQLite database (auto-created)
+└── k8s-*.yaml                 # Kubernetes deployment files
+```
 
-# Build and load image
-docker build -t gyo-en:latest .
-minikube image load gyo-en:latest
+## Data Models
 
-# Deploy to Kubernetes
-kubectl apply -f k8s-configmap.yaml
-kubectl apply -f k8s-deployment.yaml
+**User** - Authentication and user management
+```go
+type User struct {
+    ID       uint
+    Username string
+    Email    string
+    Password string
+}
+```
 
-# View logs
-kubectl logs -l app=gyo-en -f
+**MonitoredURL** - URLs each user wants to monitor
+```go
+type MonitoredURL struct {
+    ID     uint
+    UserID uint
+    URL    string
+    Name   string  // Optional friendly name
+}
+```
+
+**CheckResult** - Historical monitoring data
+```go
+type CheckResult struct {
+    URL          string
+    IsUp         bool
+    ResponseTime time.Duration
+    CheckedAt    time.Time
+}
+```
+
+## API Endpoints
+
+- `GET /api/status` - Current status of all monitored URLs
+- `GET /health` - Health check endpoint
+
+## Configuration
+
+### Environment Variables
+- `ENVIRONMENT` - development/production (default: development)
+- `PORT` - HTTP server port (default: 8080)
+- `DB_PATH` - SQLite database file path (default: gyo-en.db)
+- `URLS_FILE` - File containing URLs to monitor (default: test-urls.txt)
+
+### Monitored URLs
+**Local development:** Edit `test-urls.txt`
+```
+https://www.google.com
+https://github.com
+https://your-website.com
 ```
 
 ## Development Workflow
 
 ### Backend Changes
 ```bash
-# Local testing
+# Test locally
 go run cmd/gyo-en/main.go
 
-# For Kubernetes deployment after changes
-docker build -t gyo-en:v6 .
-minikube image load gyo-en:v6
-# Update image tag in k8s-deployment.yaml
-kubectl apply -f k8s-deployment.yaml
+# Add dependencies
+go get package-name
+go mod tidy
 ```
 
 ### Frontend Changes
@@ -71,70 +125,87 @@ npm run dev  # Hot reload for development
 npm run build  # Build for production
 ```
 
-### Configuration
+### Database
+- **SQLite file:** `gyo-en.db` (auto-created)
+- **Migrations:** Automatic via GORM AutoMigrate
+- **Reset database:** Delete `gyo-en.db` file
 
-#### Environment Variables
-- `REDIS_ADDR` - Redis connection (default: localhost:6379)
-- `PORT` - HTTP server port (default: 8080)
-- `URLS_FILE` - File containing URLs to monitor (default: test-urls.txt)
-- `ENVIRONMENT` - development/production (default: development)
+## Kubernetes Deployment
 
-#### Monitored URLs
-**Local development**: Edit `test-urls.txt`
-**Kubernetes**: Edit ConfigMap
+### Prerequisites
+- Docker Desktop
+- minikube or GKE cluster
+
+### Deploy to Kubernetes
 ```bash
-kubectl edit configmap gyo-en-config
-kubectl rollout restart deployment gyo-en-deployment
-```
+# Build and load image
+docker build -t gyo-en:latest .
+minikube image load gyo-en:latest
 
-## Architecture
+# Deploy
+kubectl apply -f k8s-configmap.yaml
+kubectl apply -f k8s-deployment.yaml
 
-```
-├── cmd/gyo-en/main.go          # Backend entry point
-├── internal/monitor/checker.go  # URL checking logic
-├── frontend/                   # React dashboard
-│   ├── src/components/Dashboard.jsx
-│   └── package.json
-├── k8s-deployment.yaml         # Kubernetes deployment
-├── k8s-configmap.yaml          # Configuration (URLs to monitor)
-├── Dockerfile                  # Container build
-└── test-urls.txt              # URLs for local development
-```
-
-## API Endpoints
-
-- `GET /api/status` - Current status of all monitored URLs
-- `GET /health` - Health check endpoint
-
-## Monitoring Commands
-
-```bash
-# View running pods
-kubectl get pods
-
-# Stream logs
+# Monitor
 kubectl logs -l app=gyo-en -f
-
-# Check pod details
-kubectl describe pod -l app=gyo-en
-
-# Force restart deployment
-kubectl rollout restart deployment gyo-en-deployment
 ```
 
 ## How It Works
 
-1. **Backend** reads URLs from file or ConfigMap
-2. **Monitor loop** checks each URL every 30 seconds
-3. **Redis** stores check history and detects status changes
-4. **API** serves current status to frontend
-5. **Dashboard** displays real-time status with auto-refresh
-6. **Kubernetes** ensures service stays running in production
+1. **Backend** monitors URLs from `test-urls.txt` every 30 seconds
+2. **Check results** are stored in SQLite database with timestamps
+3. **API** serves current status and historical data
+4. **Frontend** fetches data every 10 seconds and displays live dashboard
+5. **Database** persists all data across restarts
 
-## Next Steps
+## Technology Stack
 
-- [ ] Add user authentication
-- [ ] Allow users to add/remove URLs
-- [ ] Email/Slack notifications
-- [ ] Deploy to GKE
-- [ ] Uptime percentage calculations
+**Backend:**
+- Go 1.22 with net/http
+- GORM ORM with SQLite
+- JSON REST API
+
+**Frontend:**
+- React 19 with Vite
+- JavaScript (no TypeScript yet)
+- CSS for styling
+
+**Database:**
+- SQLite for development
+- PostgreSQL planned for production (GCP Cloud SQL)
+
+**Infrastructure:**
+- Docker containers
+- Kubernetes deployment
+- GCP free tier ready
+
+## Roadmap
+
+### Phase 1: User Authentication (In Progress)
+- [ ] User registration/login
+- [ ] Session management
+- [ ] Protected API endpoints
+
+### Phase 2: Personal Monitoring
+- [ ] Users can add/remove their own URLs
+- [ ] Personal dashboards
+- [ ] User-specific check history
+
+### Phase 3: Notifications
+- [ ] Email alerts when sites go down
+- [ ] Notification preferences
+- [ ] Alert history
+
+### Phase 4: Production Deployment
+- [ ] Deploy to GCP GKE
+- [ ] PostgreSQL database
+- [ ] CI/CD pipeline
+- [ ] Custom domain with HTTPS
+
+## Contributing
+
+This is a learning project focused on Kubernetes and Go development. The goal is to build a real monitoring service while learning cloud-native technologies.
+
+## License
+
+MIT License - See LICENSE file for details
