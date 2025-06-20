@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
 	"github.com/redis/go-redis/v9"
+	"github.com/alisayeed248/gyo-en/backend/database"
 	"log"
 	"net/http"
 	"os"
@@ -19,6 +20,8 @@ var rdb *redis.Client
 
 func main() {
 	fmt.Println("🚀 gyo-en starting...")
+
+	database.InitDatabase()
 	
 	// Environment-aware configuration
 	environment := getEnv("ENVIRONMENT", "development")

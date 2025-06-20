@@ -14,7 +14,7 @@ type User struct {
 }
 
 // monitoredUrl is a URl that a user wants to monitor
-type MonitoredUrl struct {
+type MonitoredURL struct {
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	UserID    uint      `json:"user_id" gorm:not null"`
 	URL       string    `json:"url" gorm:"not null"`
