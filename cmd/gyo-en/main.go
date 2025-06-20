@@ -80,7 +80,7 @@ func main() {
 					fmt.Printf("Failed to detect changes for %s: %v\n", url, detectErr)
 				}
 
-				storeErr := storeCheckResult(rdb, url, isUp, duration)
+				storeCheckInDatabase(url, isUp, duration, 200, "")
 				if storeErr != nil {
 					fmt.Printf("Failed to store result for %s: %v\n", url, storeErr)
 				}
@@ -254,4 +254,17 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 	
 	json.NewEncoder(w).Encode(response)
+}
+
+func storeCheckInDatabase(url string, isUp bool, duration time.Duration, statusCode int, errorMsg string) {
+	checkResult := database.CheckResult{
+		URL:          url,
+		IsUp:         isUp,
+		ResponseTime: duration,
+		StatusCode:   statusCode,
+		ErrorMessage: errorMsg,
+		CheckedAt:    time.Now(),
+	}
+	
+	database.DB.Create(&checkResult)
 }
