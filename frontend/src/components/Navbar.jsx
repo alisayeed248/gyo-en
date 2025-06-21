@@ -1,7 +1,7 @@
 function Navbar() {
   return (
     <nav>
-      <div className="fixed top-0 flex justify-between items-center p-4">
+      <div className="fixed top-0 w-full bg-red-500 flex justify-between items-center p-4" style={{right: 0}}>
         <div>gyo-en Monitor</div>
         <div>
           <button>Login</button>
