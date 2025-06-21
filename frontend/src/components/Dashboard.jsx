@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import Navbar from "./Navbar";
 
 function Dashboard() {
   const [urlStatus, setUrlStatus] = useState([]);
@@ -30,6 +31,7 @@ function Dashboard() {
 
   return (
     <div>
+      <Navbar/>
       <h1>gyo-en Monitor</h1>
       <p>Last updated: {new Date().toLocaleTimeString()}</p>
 
