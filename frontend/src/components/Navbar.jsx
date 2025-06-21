@@ -1,12 +1,14 @@
 function Navbar() {
   return (
-    <div>
-      <div>gyo-en Monitor</div>
-      <div>
-        <button>Login</button>
-        <button>Register</button>
+    <nav>
+      <div className="flex justify-between items-center p-4">
+        <div>gyo-en Monitor</div>
+        <div>
+          <button>Login</button>
+          <button>Register</button>
+        </div>
       </div>
-    </div>
+    </nav>
   );
 }
 
