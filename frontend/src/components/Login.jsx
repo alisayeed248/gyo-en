@@ -1,7 +1,7 @@
 function Login() {
   return (
     <div>
-      <div>Login</div>
+      <div className="justify-center">Login</div>
     </div>
   );
 }
