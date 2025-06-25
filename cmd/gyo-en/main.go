@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/alisayeed248/gyo-en/internal/database"
 	"github.com/alisayeed248/gyo-en/internal/monitor"
+	"github.com/alisayeed248/gyo-en/internal/auth"
 	"github.com/redis/go-redis/v9"
-	"github.com/alisayeed248/gyo-en/backend/database"
 	"log"
 	"net/http"
 	"os"
@@ -22,13 +23,13 @@ func main() {
 	fmt.Println("🚀 gyo-en starting...")
 
 	database.InitDatabase()
-	
+
 	// Environment-aware configuration
 	environment := getEnv("ENVIRONMENT", "development")
 	redisAddr := getEnv("REDIS_ADDR", "localhost:6379")
 	port := getEnv("PORT", "8080")
 	urlsFile := getEnv("URLS_FILE", "test-urls.txt")
-	
+
 	fmt.Printf("Environment: %s\n", environment)
 	fmt.Printf("Redis: %s\n", redisAddr)
 	fmt.Printf("Port: %s\n", port)
@@ -54,6 +55,7 @@ func main() {
 	// Set up API endpoints
 	http.HandleFunc("/api/status", apiStatusHandler)
 	http.HandleFunc("/health", healthHandler)
+	http.HandleFunc("/api/login", auth.LoginHandler)
 
 	// Start HTTP server in background
 	go func() {
@@ -110,7 +112,7 @@ func storeCheckInDatabase(url string, isUp bool, duration time.Duration, statusC
 		ErrorMessage: errorMsg,
 		CheckedAt:    time.Now(),
 	}
-	
+
 	database.DB.Create(&checkResult)
 }
 
@@ -151,10 +153,10 @@ func connectRedis(addr string) *redis.Client {
 		Password: "",
 		DB:       0,
 	})
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	
+
 	_, err := rdb.Ping(ctx).Result()
 	if err != nil {
 		fmt.Printf("⚠️  Redis not available at %s: %v\n", addr, err)
@@ -170,7 +172,7 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 	if rdb == nil {
 		return false, "NO_REDIS", nil
 	}
-	
+
 	ctx := context.Background()
 	key := fmt.Sprintf("checks:%s", url)
 
@@ -233,6 +235,6 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 		"timestamp": time.Now().Format(time.RFC3339),
 		"database":  true,
 	}
-	
+
 	json.NewEncoder(w).Encode(response)
 }
