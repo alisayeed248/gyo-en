@@ -4,11 +4,22 @@ function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  // not just an async function, we need to send the event?
+  // regular synchronous function, not arrow btw
+  // e here is the form submission event object
+  // handleSubmit won't be on the button level but on the form level
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    console.log("Form submitted!");
+    console.log("Username:", username);
+    console.log("Password:", password);
+  };
+
   return (
     <div>
       <div className="h-screen flex items-center justify-center">
         <div>
-          <form>
+          <form onSubmit={handleSubmit}>
             <div>Username</div>
             <input
               type="text"
