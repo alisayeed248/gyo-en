@@ -8,11 +8,24 @@ function Login() {
   // regular synchronous function, not arrow btw
   // e here is the form submission event object
   // handleSubmit won't be on the button level but on the form level
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     console.log("Form submitted!");
     console.log("Username:", username);
     console.log("Password:", password);
+
+    try {
+      const response = await fetch("http://localhost:8080/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+
+      const data = await response.text();
+      console.log("Backend response:", data);
+    } catch (error) {
+      console.log("Error:", error);
+    }
   };
 
   return (
