@@ -32,6 +32,25 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// validate the credentials we got
+	isValid, err := ValidateUser(loginReq.Username, loginReq.Password)
+	if err != nil {
+		// system error
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Server error"))
+		return
+	}
+
+	if !isValid {
+		// Wrong username/password
+		w.WriteHeader(http.StatusUnauthorized)
+		w.Write([]byte("Invalid credentials"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte("Login successful"))
+
 	fmt.Printf("Username: %s, Password: %s\n", loginReq.Username, loginReq.Password)
 	w.Write([]byte(fmt.Sprintf("Received user: %s", loginReq.Username)))
 }
