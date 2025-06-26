@@ -9,6 +9,7 @@ import (
 	"github.com/alisayeed248/gyo-en/internal/monitor"
 	"github.com/alisayeed248/gyo-en/internal/auth"
 	"github.com/redis/go-redis/v9"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"os"
@@ -23,6 +24,7 @@ func main() {
 	fmt.Println("🚀 gyo-en starting...")
 
 	database.InitDatabase()
+	createTestUser()
 
 	// Environment-aware configuration
 	environment := getEnv("ENVIRONMENT", "development")
@@ -237,4 +239,32 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	json.NewEncoder(w).Encode(response)
+}
+
+func createTestUser() {
+	// variable to hold a User struct
+	var existingUser database.User
+	// Select * from users where username = "test", gives first match and placed in existingUser variable
+	result := database.DB.Where("username = ?", "test").First(&existingUser)
+
+	if result.Error == nil {
+		fmt.Println("Test user already exists")
+		return
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	if err != nil {
+		fmt.Printf("Failed to hash password: %v\n", err)
+		return
+	}
+
+	// create test ussur
+	testUser := database.User{
+		Username: "test",
+		Email: "test@example.com",
+		Password: string(hashedPassword),
+	}
+
+	database.DB.Create(&testUser)
+	fmt.Println("Created test user: username ='test', password='password123'")
 }
