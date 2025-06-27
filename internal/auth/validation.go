@@ -7,23 +7,23 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-func ValidateUser(username, password string) (bool, error) {
+func ValidateUser(username, password string) (*database.User, error) {
 	// make a user Struct, check the db to see if we have a user that is this parameter
 	var user database.User
 	result := database.DB.Where("username = ?", username).First(&user)
 
 	if result.Error != nil {
-		return false, result.Error
+		return nil, result.Error
 	}
 
 	// compare password with stored hash
 	err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
 	if err != nil {
 		// password doesn't match
-		return false, nil
+		return nil, nil
 	}
 
-	return true, nil
+	return nil, nil
 }
 
 type Claims struct {
