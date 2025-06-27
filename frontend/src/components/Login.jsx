@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-function Login() {
+function Login({ setIsLoggedIn, setUsername: setAppUsername }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
@@ -27,6 +27,11 @@ function Login() {
 
         localStorage.setItem("jwt_token", data.token);
         localStorage.setItem("username", data.username || username);
+
+        setIsLoggedIn(true);
+        setAppUsername(username);
+
+        window.location.href = "/";
 
         alert("Login successful! Check localStorage")
       } else {

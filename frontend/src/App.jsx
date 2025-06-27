@@ -26,8 +26,8 @@ function App() {
       <Navbar isLoggedIn={isLoggedIn} username={username}/>
       {/** The routes allow us to say: based on this path, effect this prop (element) */}
       <Routes>
-        <Route path="/" element={<Dashboard />}></Route>
-        <Route path="/login" element={<Login />}></Route>
+        <Route path="/" element={isLoggedIn ? <Dashboard /> : <Login setIsLoggedIn={setIsLoggedIn} setUsername={setUsername} />}></Route>
+        <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUsername={setUsername} />} />
       </Routes>
     </BrowserRouter>
   );
