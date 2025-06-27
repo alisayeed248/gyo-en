@@ -1,10 +1,12 @@
 package auth
 
 import (
-	"time"
-	"github.com/golang-jwt/jwt/v5"
 	"github.com/alisayeed248/gyo-en/internal/database"
+	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
+	"time"
+	"errors"
+	"gorm.io/gorm"
 )
 
 func ValidateUser(username, password string) (*database.User, error) {
@@ -13,6 +15,9 @@ func ValidateUser(username, password string) (*database.User, error) {
 	result := database.DB.Where("username = ?", username).First(&user)
 
 	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, result.Error
 	}
 
@@ -27,7 +32,7 @@ func ValidateUser(username, password string) (*database.User, error) {
 }
 
 type Claims struct {
-	UserID uint `json:"user_id"`
+	UserID   uint   `json:"user_id"`
 	Username string `json:"username"`
 	jwt.RegisteredClaims
 }
@@ -38,11 +43,11 @@ func GenerateJWT(userID uint, username string) (string, error) {
 	expirationTime := time.Now().Add(1 * time.Hour)
 
 	claims := &Claims{
-		UserID: userID,
+		UserID:   userID,
 		Username: username,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(expirationTime),
-			IssuedAt: jwt.NewNumericDate(time.Now()),
+			IssuedAt:  jwt.NewNumericDate(time.Now()),
 		},
 	}
 
