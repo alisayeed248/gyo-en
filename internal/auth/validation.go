@@ -23,7 +23,7 @@ func ValidateUser(username, password string) (*database.User, error) {
 		return nil, nil
 	}
 
-	return nil, nil
+	return &user, nil
 }
 
 type Claims struct {
