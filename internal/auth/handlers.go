@@ -32,8 +32,8 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// validate the credentials we got
-	isValid, err := ValidateUser(loginReq.Username, loginReq.Password)
+	// validate the credentials we got and get user
+	user, err := ValidateUser(loginReq.Username, loginReq.Password)
 	if err != nil {
 		// system error
 		w.WriteHeader(http.StatusInternalServerError)
@@ -41,16 +41,27 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !isValid {
+	if user == nil {
 		// Wrong username/password
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("Invalid credentials"))
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Login successful"))
+	// generate JWT
+	token, err := GenerateJWT(user.Id, user.Username)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("Failed to generate token"))
+		return
+	}
 
-	fmt.Printf("Username: %s, Password: %s\n", loginReq.Username, loginReq.Password)
-	w.Write([]byte(fmt.Sprintf("Received user: %s", loginReq.Username)))
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	response := map[string]string{
+		"token":   token,
+		"message": "Login successful",
+	}
+	json.NewEncoder(w).Encode(response)
 }
