@@ -1,6 +1,8 @@
 package auth
 
 import (
+	"time"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/alisayeed248/gyo-en/internal/database"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,4 +24,34 @@ func ValidateUser(username, password string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+type Claims struct {
+	UserID uint `json:"user_id"`
+	Username string `json:"username"`
+	jwt.RegisteredClaims
+}
+
+var jwtSecret = []byte("some-secret-key")
+
+func GenerateJWT(userID uint, username string) (string, error) {
+	expirationTime := time.Now().Add(1 * time.Hour)
+
+	claims := &Claims{
+		UserID: userID,
+		Username: username,
+		RegisteredClaims: jwt.RegisteredClaims{
+			ExpiresAt: jwt.NewNumericDate(expirationTime),
+			IssuedAt: jwt.NewNumericDate(time.Now()),
+		},
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString(jwtSecret)
+	if err != nil {
+		return "", err
+	}
+
+	return tokenString, nil
 }
