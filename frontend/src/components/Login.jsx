@@ -21,10 +21,23 @@ function Login() {
         body: JSON.stringify({ username, password }),
       });
 
-      const data = await response.text();
-      console.log("Backend response:", data);
+      if (response.ok) {
+        const data = await response.json();
+        console.log("Login successful! Token: ", data.token);
+
+        localStorage.setItem("jwt_token", data.token);
+        localStorage.setItem("username", data.username || username);
+
+        alert("Login successful! Check localStorage")
+      } else {
+        const errorText = await response.text()
+        console.log("Login failed:", errorText);
+        alert("Login failed: " + errorText);
+      }
+     
     } catch (error) {
       console.log("Error:", error);
+      alert("Network error occurred");
     }
   };
 
