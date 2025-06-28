@@ -23,12 +23,31 @@ function App() {
   return (
     <BrowserRouter>
       {/* We keep Navbar at the top because we want it to show on every page */}
-      <Navbar isLoggedIn={isLoggedIn} username={username}/>
+      <Navbar isLoggedIn={isLoggedIn} username={username} />
       {/** The routes allow us to say: based on this path, effect this prop (element) */}
-      <Routes>
-        <Route path="/" element={isLoggedIn ? <Dashboard /> : <Login setIsLoggedIn={setIsLoggedIn} setUsername={setUsername} />}></Route>
-        <Route path="/login" element={<Login setIsLoggedIn={setIsLoggedIn} setUsername={setUsername} />} />
-      </Routes>
+      <div className="pt-20">
+        <Routes>
+          <Route
+            path="/"
+            element={
+              isLoggedIn ? (
+                <Dashboard />
+              ) : (
+                <Login
+                  setIsLoggedIn={setIsLoggedIn}
+                  setUsername={setUsername}
+                />
+              )
+            }
+          ></Route>
+          <Route
+            path="/login"
+            element={
+              <Login setIsLoggedIn={setIsLoggedIn} setUsername={setUsername} />
+            }
+          />
+        </Routes>
+      </div>
     </BrowserRouter>
   );
 }
