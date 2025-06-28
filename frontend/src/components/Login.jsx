@@ -48,7 +48,7 @@ function Login({ setIsLoggedIn, setUsername: setAppUsername }) {
 
   return (
     <div>
-      <div className="h-screen flex items-center justify-center">
+      <div className="h-screen flex items-center justify-center -mt-20">
         <div>
           <form onSubmit={handleSubmit}>
             <div>Username</div>
