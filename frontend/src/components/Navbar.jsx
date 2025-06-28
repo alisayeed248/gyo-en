@@ -1,12 +1,10 @@
-function Navbar({ isLoggedIn, username }) {
+function Navbar({ isLoggedIn, username, onLogout }) {
   const handleLoginClick = () => {
     window.location.href = "/login";
   };
 
   const handleLogout = () => {
-    localStorage.removeItem("jwt_token");
-    localStorage.removeItem("username");
-    window.location.href = "/login";
+    onLogout();
   };
 
   return (
@@ -17,7 +15,7 @@ function Navbar({ isLoggedIn, username }) {
           <>
             <span className="mr-4">Hello, {username}</span>
             <button
-              onClick={handleLoginClick}
+              onClick={handleLogout}
               className="mr-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
             >
               Logout
