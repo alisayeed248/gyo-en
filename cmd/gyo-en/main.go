@@ -55,7 +55,7 @@ func main() {
 	redisAvailable := rdb != nil
 
 	// Set up API endpoints
-	http.HandleFunc("/api/status", apiStatusHandler)
+	http.HandleFunc("/api/status", auth.RequireAuth(apiStatusHandler))
 	http.HandleFunc("/health", healthHandler)
 	http.HandleFunc("/api/login", auth.LoginHandler)
 
