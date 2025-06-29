@@ -9,12 +9,19 @@ function Dashboard() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const token = localStorage.getItem("jwt_token")
+        const token = localStorage.getItem("jwt_token");
+        console.log("Token from localStorage:", token);
         const response = await fetch("http://localhost:8080/api/status", {
           headers: {
-            "Authorization": `Bearer ${token}`
-          }
+            Authorization: `Bearer ${token}`,
+          },
         });
+        console.log("Response status:", response.status);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.log("Error response:", errorText); // Debug line
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
         const data = await response.json();
         setUrlStatus(data.urls);
         setLoading(false);
