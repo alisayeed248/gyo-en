@@ -9,7 +9,12 @@ function Dashboard() {
   useEffect(() => {
     const fetchStatus = async () => {
       try {
-        const response = await fetch("http://localhost:8080/api/status");
+        const token = localStorage.getItem("jwt_token")
+        const response = await fetch("http://localhost:8080/api/status", {
+          headers: {
+            "Authorization": `Bearer ${token}`
+          }
+        });
         const data = await response.json();
         setUrlStatus(data.urls);
         setLoading(false);
