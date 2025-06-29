@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -84,6 +85,8 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 
 func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		fmt.Printf("🔍 API request to %s\n", r.URL.Path)
+
 		// Handle CORS
 		w.Header().Set("Access-Control-Allow-Origin", "*")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -94,10 +97,13 @@ func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
 			w.WriteHeader(http.StatusOK)
 			return
 		}
-		
+
 		// get token from Authorization header
 		authHeader := r.Header.Get("Authorization")
+		fmt.Printf("🎫 Auth header: '%s'\n", authHeader)
+
 		if authHeader == "" {
+			fmt.Println("❌ Missing authorization header")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Missing authorization header"))
 			return
@@ -109,11 +115,13 @@ func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
 		// validate token
 		claims, err := ValidateJWT(tokenString)
 		if err != nil {
+			fmt.Printf("🔑 Token string: '%s'\n", tokenString[:20]+"...")
 			w.WriteHeader(http.StatusUnauthorized)
 			w.Write([]byte("Invalid token"))
 			return
 		}
 
+		fmt.Printf("✅ Token valid for user %d (%s)\n", claims.UserID, claims.Username)
 		// add user info to request context 
 		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
 		ctx = context.WithValue(ctx, "username", claims.Username)
