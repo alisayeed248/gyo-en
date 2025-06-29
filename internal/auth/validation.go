@@ -110,7 +110,8 @@ func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// extract token
-		tokenString := strings.TrimPrefix(authHeader, "Bearer")
+		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
+		tokenString = strings.TrimSpace(tokenString)
 
 		// validate token
 		claims, err := ValidateJWT(tokenString)

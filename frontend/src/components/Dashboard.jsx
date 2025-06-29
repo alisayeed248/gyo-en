@@ -23,6 +23,7 @@ function Dashboard() {
           throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
+        console.log("Response data:", data);
         setUrlStatus(data.urls);
         setLoading(false);
       } catch (err) {
