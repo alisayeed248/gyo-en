@@ -203,6 +203,9 @@ func detectStatusChange(rdb *redis.Client, url string, currentStatus bool) (bool
 }
 
 func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
+	// get user info from context(added by middleware)
+	userId := r.Context().Value("userID").(uint)
+
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*") // For local development
 
@@ -236,6 +239,7 @@ func apiStatusHandler(w http.ResponseWriter, r *http.Request) {
 		"urls":      statusList,
 		"timestamp": time.Now().Format(time.RFC3339),
 		"database":  true,
+		"userID": userId,
 	}
 
 	json.NewEncoder(w).Encode(response)
