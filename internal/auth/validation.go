@@ -1,11 +1,15 @@
 package auth
 
 import (
+	"context"
+	"errors"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/alisayeed248/gyo-en/internal/database"
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
-	"time"
-	"errors"
 	"gorm.io/gorm"
 )
 
@@ -61,7 +65,7 @@ func GenerateJWT(userID uint, username string) (string, error) {
 	return tokenString, nil
 }
 
-func validateJWT(tokenString string) (*Claims, error) {
+func ValidateJWT(tokenString string) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
@@ -76,4 +80,34 @@ func validateJWT(tokenString string) (*Claims, error) {
 
 	return nil, errors.New("invalid token")
 
+}
+
+func RequireAuth(handler http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// get token from Authorization header
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Missing authorization header"))
+			return
+		}
+
+		// extract token
+		tokenString := strings.TrimPrefix(authHeader, "Bearer")
+
+		// validate token
+		claims, err := ValidateJWT(tokenString)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			w.Write([]byte("Invalid token"))
+			return
+		}
+
+		// add user info to request context 
+		ctx := context.WithValue(r.Context(), "userID", claims.UserID)
+		ctx = context.WithValue(ctx, "username", claims.Username)
+
+		// call original handler with user info
+		handler(w, r.WithContext(ctx))
+	} 
 }
